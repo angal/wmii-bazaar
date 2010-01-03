@@ -143,6 +143,7 @@ class Puppeteer < WmiiStall
     index = labels.index(newclient)
     if index
       system_send(%Q{wmiir xwrite /ctl view "#{tags[index]}"})
+      system_send(%Q{wmiir xwrite /tag/sel/ctl select client #{clients[index]}})
     end
   end
   
