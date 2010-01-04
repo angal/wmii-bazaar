@@ -1,2 +1,11 @@
-wmii-bazaar is my personal way of controlling the wmii windows manager.
+wmii-bazaar is my personal way for controlling the wmii windows manager.
 
+== How To use it:
+
+1) Copy software into a directory <path>
+git clone git://github.com/angal/wmii-bazaar.git
+          
+2) Instruct wmii to use a different wmiirc
+write into .xinitrc this line:
+
+exec wmii -r <path>/wmii-bazaar/wmiirc-bazaar
