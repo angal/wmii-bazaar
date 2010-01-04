@@ -169,7 +169,7 @@ class Puppeteer < WmiiStall
       if FileTest.exist?(d)
         files = Dir["#{d}/*"]
         files.each{|f|
-          executables << File.basename(f) if File.stat(f).executable? 
+          executables << File.basename(f) if FileTest.exist?(f) && File.stat(f).executable? 
         }
       end
     }
