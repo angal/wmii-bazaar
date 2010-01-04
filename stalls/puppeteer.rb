@@ -166,10 +166,12 @@ class Puppeteer < WmiiStall
     executables = Array.new
     dirs = _dirs.split(':')
     dirs.each{|d|
-      files = Dir["#{d}/*"]
-      files.each{|f|
-        executables << File.basename(f) if File.stat(f).executable? 
-      }
+      if FileTest.exist?(d)
+        files = Dir["#{d}/*"]
+        files.each{|f|
+          executables << File.basename(f) if File.stat(f).executable? 
+        }
+      end
     }
     executables
   end
