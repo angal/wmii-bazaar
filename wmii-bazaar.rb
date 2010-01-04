@@ -310,6 +310,9 @@ class WmiiBazaarController
     @local_property_file="#{File.expand_path(conf('home.dir'))}/#{File.basename(@property_file)}"
     @props = load_config_from_file(@local_property_file, @props)
     if !FileTest::exist?(@local_property_file)
+      if !FileTest::exist?(File.expand_path(conf('home.dir')))
+        Dir.mkdir(File.expand_path(conf('home.dir')))
+      end
       f = File.new(@local_property_file, "w+")
       begin
         File.open(@property_file) do |input|
