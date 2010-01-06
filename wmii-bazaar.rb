@@ -307,6 +307,7 @@ class WmiiBazaarController
   def load_config
     @property_file=__FILE__.sub(".rb",".conf")
     @props = load_config_from_file(@property_file, Hash.new)
+    @global_props=Hash.new.update(@props)
     @local_property_file="#{File.expand_path(conf('home.dir'))}/#{File.basename(@property_file)}"
     @props = load_config_from_file(@local_property_file, @props)
     if !FileTest::exist?(@local_property_file)
@@ -329,8 +330,28 @@ class WmiiBazaarController
     end
     
     # -- reash
+    # inherited 
+    @props.each{|key,value|
+      new_value=sub_from_hash(value,@global_props,"@@{")
+      if new_value[0..0]=='!'
+        open("|#{new_value[1..-1]}","r"){|f|
+          new_value = f.read.strip
+        }
+      end
+      new_key=sub_from_hash(key,@global_props,"@@{")
+      @props[new_key]=new_value
+      if new_key != key
+        @props.delete(key)
+      end
+    }
+    # contextual
     @props.each{|key,value|
       new_value=sub_from_hash(value,@props)
+      if new_value[0..0]=='!'
+        open("|#{new_value[1..-1]}","r"){|f|
+          new_value = f.read.strip
+        }
+      end
       new_key=sub_from_hash(key,@props)
       @props[new_key]=new_value
       if new_key != key
@@ -353,14 +374,9 @@ class WmiiBazaarController
       end
       new_value=new_value.sub(_left_sep,"").sub(key_to_find,to_sub).sub(_right_sep,"")
     end
-    if new_value[0..0]=='!'
-      open("|#{new_value[1..-1]}","r"){|f|
-        new_value = f.read.strip
-      }
-    end
     new_value
   end
-  
+
   def load_stalls
     @stalls_list.each{|stall_name|
       stall_base_name=stall_name.split("@@@")[0]
