@@ -25,12 +25,11 @@ class Chkmail < WmiiStall
     end
     refresh_widget(@widget)
 
-    # echo "x" |mail | grep "^>N\|^>U"|awk '{print $2}'
   end
 
   def check_mail
     res = 0
-    open(%q{|chk4mail #{File.expand_path(conf('mbox'))} |awk '{print $2}'},"r"){|f|
+    open(%Q{|chk4mail #{File.expand_path(conf('mbox'))} |awk '{print $2}'},"r"){|f|
        res = f.read.strip.to_i
     }
     res
@@ -38,7 +37,7 @@ class Chkmail < WmiiStall
 
   def last_from
     res = ""
-    open(%q{|echo "x" |echo "x" |mail -f #{File.expand_path(conf('mbox'))} | grep "^>N\|^>U"|awk '{print $2}'},"r"){|f|
+    open(%Q{|echo "x" |echo "x" |mail -f #{File.expand_path(conf('mbox'))} | grep "^>N\|^>U"|awk '{print $2}'},"r"){|f|
        res = f.read.strip
     }
     res
