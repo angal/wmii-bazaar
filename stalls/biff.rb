@@ -36,9 +36,9 @@ class Biff < WmiiStall
     if num >= 1 && num != @last_num
       show_widget(@widget)
       refresh_widget(@widget)
-      start_blink
+      #start_blink
     elsif num == 0 && num != @last_num
-      stop_blink
+      #stop_blink
       hide_widget(@widget)
       @widget.foreground_color = @wmii_bar.default_foreground_color
     end
@@ -46,16 +46,6 @@ class Biff < WmiiStall
   end
 
   def check_mail
-    if @tast
-      @tast+=1
-    else
-      @tast=-1
-    end
-    if @tast > 0 && @tast < 3
-      return @tast
-    else
-      return 0
-    end
     res = 0
     open(%Q{|chk4mail #{File.expand_path(conf('mbox'))} |awk '{print $2}'},"r"){|f|
        res = f.read.strip.to_i
