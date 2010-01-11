@@ -1,5 +1,5 @@
 #
-#   chkmail.rb - wmii-bazaar
+#   biff.rb - wmii-bazaar
 #   by Antonio Galeone <antonio.galeone@gmail.org>
 #
 
@@ -9,16 +9,20 @@ class Biff < WmiiStall
     attach_task(30,self,:update)
     @widget = add_widget(WmiiWidget.new(@name))
     @widget.border_color = @wmii_bar.default_focus_border_color
-    @last_num = -1
+    @blinking = false
     update
   end
   
   def start_blink
+    return if @blinking
     @id_blink = attach_task(1,self,:update_blink)
+    @blinking = true
   end
 
   def stop_blink
+    return if !@blinking
     detach_task(@id_blink) if @id_blink
+    @blinking = false
   end
   
   def update_blink
@@ -33,13 +37,13 @@ class Biff < WmiiStall
   def update
     num = check_mail
     @widget.value = "*** [#{num}] NEW MAIL ***"
-    if num >= 1 && num != @last_num
+    if num >= 1
       show_widget(@widget)
       refresh_widget(@widget)
-      #start_blink
-    elsif num == 0 && num != @last_num
-      #stop_blink
-      hide_widget(@widget)
+      start_blink if !@blinking
+    elsif num == 0 && @widget.visible
+      stop_blink if @blinking
+      hide_widget(@widget) 
       @widget.foreground_color = @wmii_bar.default_foreground_color
     end
     @last_num = num

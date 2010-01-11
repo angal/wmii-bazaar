@@ -30,6 +30,43 @@ Dir.chdir("#{File.dirname(__FILE__)}")
       end
     end
   end
+
+  class Wmiir
+    def Wmiir::system_send(_cmd)
+      to_ret = ''
+      Open3.popen3(_cmd){|stdin, stdout, stderr|
+        stdout.each do |line|
+          to_ret = to_ret+line
+        end 
+      }
+      to_ret
+    end
+
+    def Wmiir::read(_path)
+      system_send("wmiir read #{_path}")
+    end
+
+    def Wmiir::ls(_path)
+      system_send("wmiir ls #{_path}")
+    end
+  
+    def Wmiir::selected_client
+      read('/client/sel/ctl').split[0]
+    end
+
+    def Wmiir::selected_tag
+      read('/tag/sel/ctl').split[0]
+    end
+
+    def Wmiir::element_in_path?(_path, _element)    
+      ls(_path).split.include?(_element)
+    end
+    
+    def Wmiir::create_tag(_tag, _colors)
+      system_send(%Q{echo "#{_colors}" "#{_tag}" | wmiir create "/lbar/#{_tag}"})
+    end
+    
+  end
   
   class WmiiBazaar
     BAR_NAME = "___WMII_SPACE___"
@@ -45,7 +82,7 @@ Dir.chdir("#{File.dirname(__FILE__)}")
       @controller=_controller
       @exports=_controller.conf_group('export')
       defaulting
-      system_send("set -- $(#{@exports['WMII_NORMCOLORS']} #{@exports['WMII_FOCUSCOLORS']})")
+      system_send("set -- $(echo '#{@exports['WMII_NORMCOLORS']}' '#{@exports['WMII_FOCUSCOLORS']}')")
       #system("wmiir remove /rbar/#{BAR_NAME} 2>/dev/null")
       #system("echo #{'"'}#{trans_tuple_color}#{'"'} | wmiir create /rbar/#{BAR_NAME} 2>/dev/null")
       @widgets = Array.new
@@ -217,15 +254,19 @@ class WmiiBazaarController
 
   def system_send(_cmd, _info="exec")
     to_ret = ''
+    error = ''
     Open3.popen3(_cmd){|stdin, stdout, stderr|
       stdout.each do |line|
         to_ret = to_ret+line
-        log(@name, "on #{_info}: #{_cmd} execution : #{line}",LogLevel::TRACE)
       end 
       stderr.each do |line|
-        log(@name, "on #{_info}: #{_cmd} execution : #{line}",LogLevel::ERROR)
+        error+=line
       end 
     }
+    log(@name, "on #{_info}: #{_cmd} execution : #{to_ret}",LogLevel::TRACE)
+    if error && error.strip.length > 0
+      log(@name, "on #{_info}: #{_cmd} execution : #{error}",LogLevel::ERROR)
+    end
     to_ret
   end
   
@@ -254,33 +295,6 @@ class WmiiBazaarController
 #    end
   end  
 
-#  def log(_caller, _msg, _level=LogLevel::TRACE)
-#    require 'thread'
-#    mutex = Mutex.new   
-#    mutex.synchronize do
-#      @thread_log = Thread.new do
-#        mutex.synchronize do
-#          if _level >= conf('log.level').to_i
-#            log_file = File.expand_path(conf('log.file'))
-#            if !File.exists?(log_file)
-#              File.new(log_file, File::CREAT).close
-#            end
-#            if FileTest::exist?(log_file) && File.stat(log_file).writable?
-#              f = File.new(log_file, "a")
-#              begin
-#                if f
-#                  f.syswrite(Time.new.strftime("#{LogLevel.level_string(_level)} at %a %d-%b-%Y %H:%M:%S : #{_caller} : #{_msg}\n"))
-#                end
-#              ensure
-#                f.close unless f.nil?
-#              end
-#            end
-#          end
-#        end
-#      end
-#    end
-#  end  
-  
   def load_config_from_file(_property_file, _hash)
     if _property_file &&  FileTest::exist?(_property_file)
       f = File::open(_property_file,'r')
@@ -433,7 +447,7 @@ class WmiiBazaarController
   end
 
   def detach_task(_task_id=nil)
-    @tasks.delete_if {|x| x[:task_id] == _task_id } 
+    @tasks.delete_if {|x| x[:task_id] == _task_id }
   end
 
   def mainloop
@@ -475,7 +489,6 @@ class WmiiBazaarController
   end
 
   def event_dispatcher(_event_str)
-    #p "STRINGA EVENTO=#{_event_str}"
     ae=_event_str.strip.split
     sender = ae[-1]
     sign = ae[0..-2].join
