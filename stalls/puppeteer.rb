@@ -37,7 +37,7 @@ class Puppeteer < WmiiStall
       fkeys.puts  "font #{@wmii_bar.exports['WMII_FONT']}"
       fkeys.puts  "focuscolors #{@wmii_bar.exports['WMII_FOCUSCOLORS']}"
       fkeys.puts  "normcolors #{@wmii_bar.exports['WMII_NORMCOLORS']}"
-      fkeys.puts  "grabmod #{conf('modkey')}"
+      fkeys.puts  "grabmod #{global_conf('MODKEY')}"
       fkeys.puts  "border 1"
     end
   end
@@ -45,7 +45,7 @@ class Puppeteer < WmiiStall
   def keys_conf
     @key_actions = Hash.new
     @tag_views = Array.new
-    modkey = conf('modkey')
+    modkey = global_conf('MODKEY')
     
     modkeys_array = Array.new
     
@@ -197,11 +197,11 @@ class Puppeteer < WmiiStall
         when "CreateTag"
           system_send(%Q{echo "#{@wmii_bar.exports['WMII_NORMCOLORS']}" "#{_event.sender}" | wmiir create "/lbar/#{_event.sender}"}, "CreateTag")
         when "DestroyTag"
-          system_send(%Q{wmiir remove /lbar/#{_event.sender}}, "DestroyTag")
+          system_send(%Q{wmiir remove /lbar/#{_event.sender}}, "DestroyTag") #if Wmiir::element_in_path?("/lbar/",_event.sender)
         when "FocusTag"
-          system_send(%Q{wmiir xwrite /lbar/#{_event.sender} "#{@wmii_bar.exports['WMII_FOCUSCOLORS']}" "#{_event.sender}"},"FocusTag")
+          system_send(%Q{wmiir xwrite /lbar/#{_event.sender} "#{@wmii_bar.exports['WMII_FOCUSCOLORS']}" "#{_event.sender}"},"FocusTag") #if Wmiir::element_in_path?("/lbar/",_event.sender)
         when "UnfocusTag"
-          system_send(%Q{wmiir xwrite /lbar/#{_event.sender} "#{@wmii_bar.exports['WMII_NORMCOLORS']}" "#{_event.sender}"},"UnfocusTag")
+          system_send(%Q{wmiir xwrite /lbar/#{_event.sender} "#{@wmii_bar.exports['WMII_NORMCOLORS']}" "#{_event.sender}"},"UnfocusTag") #if Wmiir::element_in_path?("/lbar/",_event.sender)
         when "UrgentTag"
         when "NotUrgentTag"
   
