@@ -129,6 +129,7 @@ class Puppeteer < WmiiStall
   def select_client
     left_sep="["
     right_sep="]"
+    max_length = 20
     clients = system_send("wmiir ls /client").split.collect!{|x|
       x.chop
     }
@@ -136,7 +137,11 @@ class Puppeteer < WmiiStall
     labels=[]
     tags=[]
     clients.each{|c|
-      labels << %Q{#{left_sep}#{wmiir_read("/client/#{c}/label")}#{right_sep}}
+      label = wmiir_read("/client/#{c}/label")
+      if label && label.length > max_length
+        label = "#{label[0..max_length-1]} ... "
+      end
+      labels << %Q{#{left_sep}#{label}#{right_sep}}
       tags << wmiir_read("/client/#{c}/tags")
     }
     newclient=system_send(%Q{echo -e "#{labels.join('\n')}"|wimenu -h "#{global_conf('history.file')}".tags -n 50}) 
