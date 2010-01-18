@@ -78,6 +78,7 @@ Dir.chdir("#{File.dirname(__FILE__)}")
     attr_reader :default_focus_background_color
     attr_reader :default_focus_border_color
     attr_reader :exports
+    attr_reader :controller
     def initialize(_controller)
       @controller=_controller
       @exports=_controller.conf_group('export')
@@ -139,6 +140,7 @@ Dir.chdir("#{File.dirname(__FILE__)}")
     end
     
     def add_widget(_widget)
+      _widget.bazaar=self
       normalize(_widget)
       show_widget(_widget)
       @widgets << _widget
@@ -567,11 +569,64 @@ class WmiiWidget
   attr_accessor :background_color
   attr_accessor :border_color
   attr_accessor :visible
+  attr_accessor :bazaar
   attr_reader :name
   def initialize(_name)
     @name = _name
     @visible = false
+    @blinking = false
   end
+  # blinking capability
+  def blinking?
+    @blinking
+  end
+  
+  def start_blink_with_colors(_on_fg,_on_bg,_off_fg,_off_bg)
+    return if @blinking
+    @start_fg=@foreground_color
+    @start_bg=@background_color
+    @on_fg=_on_fg
+    @on_bg=_on_bg
+    @off_fg=_off_fg
+    @off_bg=_off_bg
+    @blink_on=false
+    @id_blink = @bazaar.controller.attach_task(1,self,:update_blink)
+    @blinking = true
+  end
+  
+  def start_blink
+    start_blink_with_colors(@bazaar.default_focus_foreground_color, @bazaar.default_background_color, @bazaar.default_foreground_color, @bazaar.default_background_color)
+  end  
+  
+  def update_blink_colors(_on_fg,_on_bg,_off_fg,_off_bg)
+    @on_fg=_on_fg
+    @on_bg=_on_bg
+    @off_fg=_off_fg
+    @off_bg=_off_bg
+  end
+  
+  def stop_blink
+    return if !@blinking
+    @bazaar.controller.detach_task(@id_blink) if @id_blink
+    @blinking = false
+    @foreground_color=@start_fg
+    @background_color=@start_bg
+    @bazaar.controller.refresh_widget(self)
+  end
+  
+  def update_blink
+    if @blink_on
+      @foreground_color = @off_fg
+      @background_color = @off_bg
+      @blink_on=false
+    else
+      @foreground_color = @on_fg
+      @background_color = @on_bg
+      @blink_on=true
+    end
+    @bazaar.controller.refresh_widget(self)
+  end
+  
 end
 
 class WmiiStall
@@ -652,7 +707,7 @@ class WmiiStall
   def show_widget(_widget)
     @wmii_controller.show_widget(_widget)
   end
-  
+
 end
 
 

@@ -9,6 +9,7 @@ class Batt < WmiiStall
     @progress_count = 0
     @progress_max = 2
     @level=100
+    @alert_level = conf("alert_level").to_i
     attach_task(10,self,:update_charging_state)
     attach_task(1,self,:update)
     @widget = add_widget(WmiiWidget.new(@name))
@@ -50,7 +51,13 @@ class Batt < WmiiStall
     end
     if @widget.visible
       @widget.value = build_value(@last_c_state, @level)
-      refresh_widget(@widget)
+#      if @level < @alert_level && !@widget.blinking?
+#        @widget.start_blink_with_colors(conf('alert_fg'),conf('alert_bg'),@wmii_bar.default_background_color,@wmii_bar.default_background_color)
+#      elsif @level >= @alert_level && @widget.blinking? 
+#        @widget.stop_blink 
+#      else
+        refresh_widget(@widget) if !@widget.blinking?
+#      end
     end
   end
   
@@ -68,24 +75,34 @@ class Batt < WmiiStall
   
   def update_charging_state
     c_state = charging_state
-    if c_state == 'charging'
-      @widget.background_color = "#0e490e"
-    elsif c_state == 'charged'
-      @widget.background_color = @wmii_bar.default_background_color
-      @widget.foreground_color = @wmii_bar.default_foreground_color
-    else
-      @widget.background_color = "#882114"
+    if !@widget.blinking?
+      if c_state == 'charging'
+        @widget.background_color = conf('charging_bg')
+        @widget.foreground_color = conf('charging_fg')
+      elsif c_state == 'charged'
+        @widget.background_color = @wmii_bar.default_background_color
+        @widget.foreground_color = @wmii_bar.default_foreground_color
+      else
+        @widget.background_color = conf('uncharging_bg')
+        @widget.foreground_color = conf('uncharging_fg')
+      end
     end
     if c_state != 'charged' || c_state !=@last_c_state 
       @level = (cur_capacity * 100 / @max_capacity)
       @widget.value = build_value(c_state, @level)
-      if c_state != 'charged'
-        if @level < 50
-          @widget.foreground_color = "#d90e10"
-        else
-          @widget.foreground_color = "#28be49"
-        end
+      if @level < @alert_level && !@widget.blinking? && c_state != 'charging'
+        @widget.start_blink_with_colors(conf('alert_fg'),conf('alert_bg'),@wmii_bar.default_background_color,@wmii_bar.default_background_color)
+      elsif (@level >= @alert_level || c_state == 'charging') && @widget.blinking? 
+        @widget.stop_blink 
       end
+      
+#      if c_state != 'charged'
+#        if @level < 50
+#          @widget.foreground_color = "#d90e10"
+#        else
+#          @widget.foreground_color = "#28be49"
+#        end
+#      end
     end
     @last_c_state=c_state
   end
