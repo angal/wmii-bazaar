@@ -13,8 +13,12 @@ class Wall < WmiiStall
       views = conf('workspace.bind.views').split(',')
       views.each{|view|
         img = conf("workspace.bind.views.#{view}.img")
+        command = conf("workspace.bind.views.#{view}.command")
         if img
           @view_actions[view]="feh --bg-center #{img}"
+          attach_listener(self,view)
+        elsif command
+          @view_actions[view]=command
           attach_listener(self,view)
         end
       }

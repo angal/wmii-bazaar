@@ -112,7 +112,7 @@ class Puppeteer < WmiiStall
   end
   
   def retag_selected_client
-    newtag=system_send(%Q{echo ''|wimenu -h "#{global_conf('history.file')}".tags -n 50}) 
+    newtag=system_send(%Q{echo ''|#{global_conf('menu')} -h "#{global_conf('history.file')}".tags -n 50}) 
     system_send("wmiir xwrite /client/#{selected_client}/tags #{newtag}")
     @tag_views << newtag
   end
@@ -122,14 +122,14 @@ class Puppeteer < WmiiStall
       x.chop
     }
     tags.delete("sel")
-    newtag=system_send(%Q{echo -e "#{tags.join('\n')}"|wimenu -h "#{global_conf('history.file')}".tags -n 50}) 
+    newtag=system_send(%Q{echo -e "#{tags.join('\n')}"|#{global_conf('menu')} -h "#{global_conf('history.file')}".tags -n 50}) 
     system_send(%Q{wmiir xwrite /ctl view #{newtag}})
   end
   
   def select_client
     left_sep="["
     right_sep="]"
-    max_length = 20
+    max_length = 30
     clients = system_send("wmiir ls /client").split.collect!{|x|
       x.chop
     }
@@ -144,7 +144,7 @@ class Puppeteer < WmiiStall
       labels << %Q{#{left_sep}#{label}#{right_sep}}
       tags << wmiir_read("/client/#{c}/tags")
     }
-    newclient=system_send(%Q{echo -e "#{labels.join('\n')}"|wimenu -h "#{global_conf('history.file')}".tags -n 50}) 
+    newclient=system_send(%Q{echo -e "#{labels.join('\n')}"|#{global_conf('menu')} -h "#{global_conf('history.file')}".tags -n 50}) 
     index = labels.index(newclient)
     if index
       system_send(%Q{wmiir xwrite /ctl view "#{tags[index]}"})
@@ -181,22 +181,15 @@ class Puppeteer < WmiiStall
     executables
   end
   
-  def system_or_instance_send(_cmd, _info="exec")
-    if _cmd[0..0]=="%"
-      self.instance_eval(_cmd[1..-1])      
-    else
-      system_send(_cmd, _info)
-    end
-  end
   
   def on_wmii_event(_event)
     #log(@name,"Event=> sign:#{_event.sign}  sender:#{_event.sender}",LogLevel::TRACE)
     if @key_actions[_event.sender]
       system_or_instance_send(@key_actions[_event.sender],_event.sender)
-    elsif @event_actions[_event.sender]
-      system_or_instance_send(@event_actions[_event.sender],_event.sender)
-    elsif @tag_views.include?(_event.sender) && _event.sign=='LeftBarClick1' 
-      system_send(%Q{wmiir xwrite /ctl view "#{_event.sender}"}, _event.sign)
+    elsif @event_actions[_event.sign]
+      system_or_instance_send(@event_actions[_event.sign],_event.raw)
+    elsif @tag_views.include?(_event.sender) && _event.sign=='LeftBarClick1'  
+      system_send(%Q{wmiir xwrite /ctl view "#{_event.sender}"}, _event.raw)
     else
       case _event.sign
         when "CreateTag"

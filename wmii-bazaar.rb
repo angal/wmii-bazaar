@@ -177,9 +177,21 @@ class WmiiEvent
   attr_reader :sender
   attr_reader :time
   attr_reader :sign
-  def initialize(_sender,_sign)
-    @sender = _sender
-    @sign = _sign
+  #attr_reader :arg
+  attr_reader :raw
+  def initialize(_event_str)
+    @raw = _event_str
+    ae=_event_str.strip.split
+    if ae.length > 2 && ae[0][0..5] == 'Client'
+      @sign = ae[0].concat(ae[-1])
+      @sender = ae[1]
+    elsif ae.length > 2
+      @sign = ae[0..1].join
+      @sender = ae[2]
+    elsif ae.length > 0
+      @sign = ae[0]
+      @sender = ae[1]
+    end
     @time = Time.new
   end
   
@@ -196,6 +208,27 @@ end
 #    @wmii_controller.twidgets[_name]
 #  end
 #end
+
+class ListenerCallback
+  attr_reader :listener
+  def initialize(_listener, _method=:on_wmii_event)
+  		@listener = _listener
+  		@method=_method
+  end
+    
+  def respond_to?(_method)
+    if _method == :on_wmii_event 
+      @listener.respond_to?(@method)
+    else
+      super
+    end
+  end
+    
+  def on_wmii_event(*args)
+  		@listener.send(@method,*args) if @listener.respond_to?(@method)
+  end
+end
+
 
 class WmiiBazaarController
   include Observable
@@ -382,13 +415,14 @@ class WmiiBazaarController
       key_to_find = new_value.split(_left_sep)[1].split[0]
       if key_to_find.include?(_right_sep)
         key_to_find= key_to_find.split(_right_sep)[0]
+        key_to_find_with_sep= "#{_left_sep}#{key_to_find}#{_right_sep}"
       end
       if _hash[key_to_find]
         to_sub = _hash[key_to_find]
       else
         to_sub = "<KEY '#{key_to_find}' NOT FOUND!"
       end
-      new_value=new_value.sub(_left_sep,"").sub(key_to_find,to_sub).sub(_right_sep,"")
+      new_value=new_value.sub(key_to_find_with_sep,to_sub)
     end
     new_value
   end
@@ -477,54 +511,48 @@ class WmiiBazaarController
     }
  	  finalize
   end
-
-  def attach_listener(_listener, _sender='*all')
+  
+  def attach_listener(_listener, _sender='*all', _method = :on_wmii_event)
     @listeners = {} unless defined? @listeners
     @listeners[_sender] = []   unless @listeners.has_key?(_sender)
-    @listeners[_sender] << _listener
+    @listeners[_sender] << ListenerCallback.new(_listener, _method)
   end
   
   def detach_listener(_listener, _sender='*all')
     if @listeners[_sender]
-      @listeners[_sender].delete(_listener)
+      @listeners[_sender].each{|lis|
+        if lis.listener == _listener || lis == _listener
+          lis_to_del = lis
+          break
+        end   
+      }
+      @listeners[_sender].delete(lis_to_del) if lis_to_del
     end
   end
 
   def event_dispatcher(_event_str)
-    ae=_event_str.strip.split
-    sender = ae[-1]
-    sign = ae[0..-2].join
-    event = WmiiEvent.new(sender,sign)
+    event = WmiiEvent.new(_event_str)
+    #p event
     listeners = []
-    listeners = listeners.concat(@listeners[sender]) if @listeners[sender]
+    listeners = listeners.concat(@listeners[event.sender]) if @listeners[event.sender]
     listeners = listeners.concat(@listeners['*all']) if @listeners['*all']
     if !listeners.empty?
       listeners.each do|_listener|
         Thread.new{
           begin
             if _listener.respond_to?(:on_wmii_event)
-              log(_listener,"Dispatch Event => sender=#{sender} sign=#{sign}",LogLevel::TRACE) 
+              log(_listener,"Dispatch Event => sender=#{event.sender} sign=#{event.sign}",LogLevel::TRACE) 
               _listener.send(:on_wmii_event, event)
             else
-              log(sender,"Dispatch Event => sign=#{sign} #{sender} not respond to : on_wmii_event",LogLevel::WARN) 
+              log(event.sender,"Dispatch Event => sign=#{event.sign} #{event.sender} not respond to : on_wmii_event",LogLevel::WARN) 
             end
           rescue Exception,LoadError
-            msg = %{on "#{sender}:#{sign}" (#{$!.class.to_s}) : #{$!} at : #{$@.to_s}}
+            msg = %{on "#{event.sender}:#{event.sign}" (#{$!.class.to_s}) : #{$!} at : #{$@.to_s}}
             log(_listener,msg,LogLevel::ERROR) 
           end
         }
       end
     end
-    # listeners on all the events
-#    if @listeners['*all']
-#      @listeners['*all'].each do|_listener|
-#        Thread.new{
-#           _listener.send(:on_wmii_event, event) if _listener.respond_to?(:on_wmii_event)
-#        }
-#      end
-#    end
-
-    #p "sender=#{sender} event=#{event}"
   end
 
   def event_handler
@@ -635,8 +663,33 @@ class WmiiStall
     @wmii_controller = _wmii_controller
     @wmii_bar = _wmii_bar
     @name = _name
+    handle_conf_event
   end
   
+  def handle_conf_event
+    @events_callbacks = Hash.new
+    on_events_array = conf_group('on_events')
+    on_events_array.each{|key,value|
+      @events_callbacks[key]=value
+    }
+    attach_listener(self, "*all", :on_events) if on_events_array.length > 0
+  end
+  
+  def on_events(_event)
+    if @events_callbacks[_event.sign]
+      cmd = @events_callbacks[_event.sign].sub('_EVENT_.sender',_event.sender).sub('_EVENT_.sign',_event.sign)
+      system_or_instance_send(cmd)
+    end 
+  end
+
+  def system_or_instance_send(_cmd, _info="exec")
+    if _cmd[0..0]=="%"
+      self.instance_eval(_cmd[1..-1]) if self.respond_to?(_cmd[1..-1])     
+    else
+      system_send(_cmd, _info)
+    end
+  end
+
   def conf(_property)
     @wmii_controller.conf("stalls.conf.#{@name}.#{_property}")
   end
@@ -679,8 +732,8 @@ class WmiiStall
     @wmii_controller.detach_task(_task_id)
   end
   
-  def attach_listener(_listener, _sender='*all')
-    @wmii_controller.attach_listener(_listener, _sender)
+  def attach_listener(_listener, _sender='*all', _method = :on_wmii_event)
+    @wmii_controller.attach_listener(_listener, _sender, _method)
   end
   
   def detach_listener(_listener, _sender='*all')
