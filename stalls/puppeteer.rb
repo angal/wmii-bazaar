@@ -15,6 +15,7 @@ class Puppeteer < WmiiStall
     keys_conf
     events_conf
     wm_conf
+    apply_rules
     start_init
   end
   
@@ -42,6 +43,20 @@ class Puppeteer < WmiiStall
     end
   end
 
+  def apply_rules
+    # apply  colrules and tagrules
+    ['colrules','tagrules'].each{|rule|
+      rules = global_conf_group(rule)
+      if rules.length > 0
+        IO.popen("wmiir write /#{rule}", "w") do |io|
+          rules.each{|k,v|
+            io.puts  "#{k} -> #{v}"
+          }
+        end
+      end
+    }
+  end
+  
   def keys_conf
     @key_actions = Hash.new
     @tag_views = Array.new
@@ -188,8 +203,8 @@ class Puppeteer < WmiiStall
       system_or_instance_send(@key_actions[_event.sender],_event.sender)
     elsif @event_actions[_event.sign]
       system_or_instance_send(@event_actions[_event.sign],_event.raw)
-    elsif @tag_views.include?(_event.sender) && _event.sign=='LeftBarClick1'  
-      system_send(%Q{wmiir xwrite /ctl view "#{_event.sender}"}, _event.raw)
+#    elsif @tag_views.include?(_event.sender) && _event.sign=='LeftBarClick1'  
+#      system_send(%Q{wmiir xwrite /ctl view "#{_event.sender}"}, _event.raw)
     else
       case _event.sign
         when "CreateTag"
@@ -203,7 +218,8 @@ class Puppeteer < WmiiStall
         when "UrgentTag"
         when "NotUrgentTag"
   
-        when "LeftBarClick", "LeftBarDND"
+        when "LeftBarClick1", "LeftBarDND"
+          system_send(%Q{wmiir xwrite /ctl view "#{_event.sender}"}, _event.raw)
         when "Unresponsive"
         when "Notice"
       end
