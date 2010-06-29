@@ -668,18 +668,27 @@ class WmiiStall
   
   def handle_conf_event
     @events_callbacks = Hash.new
+    # global events
     on_events_array = conf_group('on_events')
     on_events_array.each{|key,value|
       @events_callbacks[key]=value
     }
     attach_listener(self, "*all", :on_events) if on_events_array.length > 0
+    # self event
+    on_self_events_array = conf_group('on_self_events')
+    on_self_events_array.each{|key,value|
+      @events_callbacks["#{@name}::#{key}"]=value
+    }
+    attach_listener(self, @name, :on_events) if on_self_events_array.length > 0
   end
   
   def on_events(_event)
-    if @events_callbacks[_event.sign]
-      cmd = @events_callbacks[_event.sign].sub('_EVENT_.sender',_event.sender).sub('_EVENT_.sign',_event.sign)
-      system_or_instance_send(cmd)
-    end 
+    [_event.sign,"#{_event.sender}::#{_event.sign}"].each{|signature|
+      if @events_callbacks[signature]
+        cmd = @events_callbacks[signature].sub('_EVENT_.sender',_event.sender).sub('_EVENT_.sign',_event.sign)
+        system_or_instance_send(cmd)
+      end 
+    }
   end
 
   def system_or_instance_send(_cmd, _info="exec")
