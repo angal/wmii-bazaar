@@ -380,6 +380,8 @@ class WmiiBazaarController
     
     # -- reash
     # inherited 
+    to_update_hash  = Hash.new
+    to_deley_keys = Array.new
     @props.each{|key,value|
       new_value=sub_from_hash(value,@global_props,"@@{")
       if new_value[0..0]=='!'
@@ -388,12 +390,21 @@ class WmiiBazaarController
         }
       end
       new_key=sub_from_hash(key,@global_props,"@@{")
-      @props[new_key]=new_value
+      #@props[new_key]=new_value
+      to_update_hash[new_key]=new_value
       if new_key != key
-        @props.delete(key)
+        to_deley_keys << key
+	#@props.delete(key)
       end
     }
+    @props.update(to_update_hash)
+    to_deley_keys.each{|k|
+	@props.delete(k)
+    }
+    
     # contextual
+    to_update_hash  = Hash.new
+    to_deley_keys = Array.new
     @props.each{|key,value|
       new_value=sub_from_hash(value,@props)
       if new_value[0..0]=='!'
@@ -402,10 +413,16 @@ class WmiiBazaarController
         }
       end
       new_key=sub_from_hash(key,@props)
-      @props[new_key]=new_value
+      #@props[new_key]=new_value
+      to_update_hash[new_key]=new_value
       if new_key != key
-        @props.delete(key)
+        to_deley_keys << key
+        #@props.delete(key)
       end
+    }
+    @props.update(to_update_hash)
+    to_deley_keys.each{|k|
+	@props.delete(k)
     }
   end
 

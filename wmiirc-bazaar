@@ -6,7 +6,7 @@
 #
 
 Dir.chdir("#{File.dirname(__FILE__)}")
-require "wmii-bazaar"
+require "#{Dir.pwd}/wmii-bazaar"
 if ARGV.length > 0
   case ARGV(0)
     when "start"
